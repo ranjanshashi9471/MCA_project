@@ -1,0 +1,55 @@
+                                                                  ---Project---
+
+Schema design for department :
+
+
+1.Student table:
+Attributes: prn_no, roll_no, name, batch, aadhar_no, email, mobile_no, address, father_name, mother_name, 10th_grade, 12th_grade, graduation_grade, category, state, dob, blood_grp, gender, district, course_id(foreign key)
+primary_key(roll_no)
+
+
+2.Course:
+Attributes: course_id, course_name, duration, credits
+primary key(course_id)
+
+
+3.Subject table:
+Attributes: subject_code, sub_name, credits, tot_internal, tot_external
+primary_key(sub_code)
+
+
+4.sem_sub_regist:
+Attributes: roll_no, year, semester, subject_code (composite primary key)
+
+
+5.Faculty table:
+Attributes: faculty_id, faculty_name, faculty_type, gender, major, research_area, mobile_no, state, district, country 
+primary key(faculty_id)
+
+
+6.semester_subject_teaching: 
+Attributes: faculty_id, subject_code, year, semester (composite primary key)
+
+
+7.Exams:
+Attributes: Exam_code, exam_type(internal1,internal2,internal3, external)
+primary key: Exam_code(will be comprising of some text and year)
+
+
+8.stud_sub_marks (derived table):
+Attributes: roll_no, exam_code, subject_code, batch, semester, date, ob_grades
+primary_key(roll_no, exam_code, subject_code, batch, semester)
+foreign key (roll_no, exam_code, subject_code)
+
+
+9.payment table: 
+Attributes: prn_no, transaction_no, date, time, payment_amt, payment_status, chalan_id(foreign_key)
+primary_key(transaction_no)
+
+
+10.challan table:
+Attributes: challan_id, prn(foreign_key), amount
+primary_key: (challan_id)
+
+
+
