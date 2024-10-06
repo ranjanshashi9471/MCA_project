@@ -1,41 +1,54 @@
 
 let db;  // Global variable to hold the database instance
+var rendered_table = "";
 
 // Function to initialize the database
 function initializeDatabase() {
   return initSqlJs().then((SQL) => {
-    // Fetch and apply the schema
-    return fetch("schema.sql")
-      .then(response => response.text())
-      .then(schema => {
-        // Create a new database instance
-        db = new SQL.Database();
-
-        // Run the schema SQL commands
-        db.run(schema);
-
-        console.log('Database created and schema applied');
-
-        // Run a test query to verify the table info
-
-
-        // Return a promise that resolves after rendering is complete
-        // return new Promise((resolve) => {
-        //   renderStudSub();
-        //   resolve();
-        // });
-      })
-      .catch(err => console.error('Error initializing database:', err));
+    db = new SQL.Database();
+    console.log('Database created and schema applied');
   });
+}
+
+function setVisibleTable(tablename) {
+  if (rendered_table != "") {
+    const prevtable = document.getElementById(`${rendered_table}-div`);
+    prevtable.classList.add("hidden");
+  }
+  const tablediv = document.getElementById(`${tablename}-div`);
+  tablediv.classList.remove("hidden");
+  rendered_table = tablename;
 }
 
 function renderHeader() {
   const result = db.exec("SELECT name FROM sqlite_master WHERE type='table';");
   const root = document.getElementById("root");
+  const tableList = document.createElement("div");
+  tableList.setAttribute("id", "table-list");
+  const table = document.createElement("div");
+  table.setAttribute("id", "table");
+  root.appendChild(tableList);
+  root.appendChild(table);
 
   //constructing table structure for manupulation
   result[0].values.forEach((tablename, id) => {
+
+    //listing table names
+    const anch = document.createElement("a");
+    anch.innerHTML = `${tablename[0]}`;
+    anch.setAttribute("href", "#");
+    anch.classList.add("anch");
+    anch.addEventListener("click", (event) => {
+      event.preventDefault();
+      setVisibleTable(tablename[0]);
+    });
+    tableList.appendChild(anch);
+
+    //rendering tables and table data
     const tablediv = document.createElement("div");
+    tablediv.setAttribute("id", `${tablename[0]}-div`);
+    tablediv.classList.add("hidden");
+
     tablediv.innerHTML = `<h2>  ${tablename[0]}</h2>
     <div id="${tablename[0]}">
       <div id="${tablename[0]}_input">
@@ -76,7 +89,7 @@ function renderHeader() {
         </table>
       </div>
     </div>`;
-    root.appendChild(tablediv);
+    table.appendChild(tablediv);
 
     //rendering header for a table.
     const tablerow = document.getElementsByClassName(`${tablename[0]}_header`);
@@ -93,16 +106,16 @@ function renderHeader() {
       });
     }
 
-    const tableinfo = db.exec(`PRAGMA table_info(${tablename[0]})`);
-    var query = `INSERT INTO ${tablename[0]} values("0"`;
+    // const tableinfo = db.exec(`PRAGMA table_info(${tablename[0]})`);
+    // var query = `INSERT INTO ${tablename[0]} values("0"`;
 
-    tableinfo[0].values.forEach((data, index) => {
-      if (index > 0) {
-        query = query + `, ""`;
-      }
-    });
-    query = query + `);`;
-    const qres = db.exec(query);
+    // tableinfo[0].values.forEach((data, index) => {
+    //   if (index > 0) {
+    //     query = query + `, ""`;
+    //   }
+    // });
+    // query = query + `);`;
+    // const qres = db.exec(query);
     renderTable(tablename[0]);
   });
 
@@ -112,14 +125,23 @@ function renderTable(tablename) {
   const output = document.getElementById(`${tablename}-data-output`);
   output.innerHTML = "";
   const res = db.exec(`SELECT * from ${tablename};`);
-  if(res[0]){
+  if (res[0]) {
+    const rowlen = res[0].values.length;
     res[0].values.forEach((data, rowindex) => {
       const row = document.createElement("tr");
       row.innerHTML = "";
       data.forEach((coldata, colId) => {
         if (colId > 0) {
+         
           const tableColumn = document.createElement("td");
-          tableColumn.innerHTML = `<input type="text" name="${res[0].columns[colId]}" value="${coldata}" autofocus oninput="handleInputChange(${data[0]}, event, ${tablename})" />`;
+          tableColumn.innerHTML = `
+          <div class="container">
+              <input type="text" name="${res[0].columns[colId]}" value="${coldata}" onkeydown = "insertNewRow(${tablename}, event, ${colId})" oninput="handleInputChange(${data[0]}, event, ${tablename})" }/>
+              <ul type = "none" id="${tablename}-${res[0].columns[colId]}-dropdown" class="dropdown">
+                <!-- List items will be dynamically inserted here -->
+              </ul>
+          </div>
+          `;
           row.appendChild(tableColumn);
         }
       });
@@ -127,7 +149,17 @@ function renderTable(tablename) {
       tableColumn.innerHTML = `<button onclick="remove(${data[0]}, ${tablename})">Remove</button>`;
       row.appendChild(tableColumn);
       output.appendChild(row);
+      
+    
     });
+  }
+}
+
+function insertNewRow(tableName, event, colNo) {
+  console.log(tableName.id);
+  const totColNo = event.target.parentNode.parentNode.parentNode.childElementCount;
+  if ((colNo == totColNo - 1) && (event.key == 'Enter')) {
+    add(tableName);
   }
 }
 
@@ -135,7 +167,7 @@ function add(tablename) {
   const res = db.exec(`PRAGMA table_info (${tablename.id});`);
   const tableinfo = db.exec(`SELECT * from ${tablename.id};`);
   const row = document.createElement("tr");
-  var query = `INSERT INTO ${tablename.id} values(${tableinfo[0]?(tableinfo[0].values.length):0}`;
+  var query = `INSERT INTO ${tablename.id} values(${tableinfo[0] ? (tableinfo[0].values.length) : 0}`;
   res[0].values.forEach((data, index) => {
     if (index > 0) {
       query = query + `, ""`;
@@ -148,9 +180,78 @@ function add(tablename) {
 
 function handleInputChange(index, event, tableName) {
   const { name, value } = event.target;
-  const query = `UPDATE ${tableName.id} SET ${name} = '${value}' WHERE id = ${index};`;
-  db.exec(query);
+  const result = db.exec(`PRAGMA foreign_key_list(${tableName.id});`);
+  if (result[0]) {
+    let tab = "";
+    var relColumns = [];
+    result[0].values.forEach((col, colId) => {
+      if (col[3] == name) {
+        tab = col[2];
+      }
+    });
+    if (tab != "") {
+      result[0].values.forEach((col, colId) => {
+        if (col[2] == tab && col[3] != name) {
+          relColumns.push(col[3]);
+        }
+      });
+      var len = relColumns.length;
+      var query1 = "";
+      var result1;
+      if (len > 0) {
+        query1 = `select `;
+        relColumns.forEach((data, id) => {
+          if (id != len - 1) {
+            query1 += `${data},`;
+          } else {
+            query1 += `${data} `;
+          }
+        });
+        query1 += `from ${tableName.id} where id = ${index}`;
+        result1 = db.exec(query1);
+      }
+      query1 = `SELECT distinct(${name}) from ${tab} where`;
+      if (result1) {
+        len = result1[0].columns.length;
+        result1[0].values[0].forEach((data, id) => {
+          if (data != "") {
+            query1 += ` ${result1[0].columns[id]} = "${data}" AND`;
+          }
+        });
+      }
+      query1 += ` ${name} LIKE "%${value}%";`;
+      result1 = db.exec(query1);
+      console.log(result1);
+      const dropdown = document.getElementById(`${tableName.id}-${name}-dropdown`);
+      dropdown.style.display = "block";
+      dropdown.innerHTML = "";
+      if (result1) {
+        result1[0].values.forEach((data, id) => {
+          const li = document.createElement("li");
+          li.innerHTML = data;
+          li.id = data;
+          li.addEventListener("click", (e) => {
+            db.exec(
+              `UPDATE ${tableName.id} set ${name} = "${e.target.id}" where id = ${index};`
+            );
+            renderTable(tableName.id);
+            dropdown.style.display = "none";
+          });
+          dropdown.appendChild(li);
+        });
+      }
+    } else {
+      db.exec(
+        `UPDATE ${tableName.id} set ${name} = "${value}" where id = ${index};`
+      );
+    }
+  } else {
+    db.exec(
+      `UPDATE ${tableName.id} set ${name} = "${value}" where id = ${index};`
+    );
+  }
 }
+
 
 function generateOutput(event) {
   const tableName = event.target.name;
@@ -165,7 +266,7 @@ function generateOutput(event) {
       data.forEach((colData, colId) => {
         if (colId) {
           const col = document.createElement("td");
-          col.innerHTML = `<td><input type="text" name="stud_name" value="${colData
+          col.innerHTML = `<td><input type="text" value="${colData
             }" readonly /></td>`;
           row.appendChild(col);
         }
@@ -180,37 +281,6 @@ function remove(index, tableName) {
   const res = db.exec(`DELETE FROM ${tableName.id} where id = ${index}`);
   renderTable(tableName.id);
 }
-
-// function handleChange(id, event) {
-//   const { name, value } = event.target;
-//   var dropdown, res;
-//   if (name == "rollno") {
-//     dropdown = document.getElementById("rollno-dropdown");
-//     res = db.exec(
-//       `Select ${name} from studinfo where rollno like "%${value}%";`
-//     );
-//   } else {
-//     dropdown = document.getElementById("subno-dropdown");
-//     res = db.exec(`Select ${name} from subject where subno like "%${value}%";`);
-//   }
-//   dropdown.style.display = "block";
-//   dropdown.innerHTML = "";
-//   if (res[0]) {
-//     res[0].values.forEach((data, index) => {
-//       const li = document.createElement("li");
-//       li.innerHTML = data;
-//       li.id = data;
-//       li.addEventListener("click", (e) => {
-//         db.exec(
-//           `UPDATE stud_sub set ${name} = "${e.target.id}" where id = ${id};`
-//         );
-//         renderStudSub();
-//         dropdown.style.display = "none";
-//       });
-//       dropdown.appendChild(li);
-//     });
-//   }
-// }
 
 function saveJson(event) {
   const res = db.exec(`SELECT * FROM ${event.target.name};`);
@@ -228,19 +298,26 @@ function saveJson(event) {
 
 function loadJson(event) {
   const file = event.target.files[0];
+  const result = db.exec(`SELECT * from ${event.target.name};`);
+  let len = 0;
+  if(result[0]){
+    len = result[0].values.length;
+  }
+
   const reader = new FileReader();
-  db.exec(`DELETE from ${event.target.name};`);
   reader.onload = (e) => {
-    res = JSON.parse(e.target.result);
+    console.log(e.target.result);
+    const res = JSON.parse(e.target.result);
     res[0].values.forEach((data) => {
-      var query = `INSERT INTO ${event.target.name} VALUES (${data[0]}`;
-      data.forEach((value,id)=>{
-        if(id >0){
+      var query = `INSERT INTO ${event.target.name} VALUES (${len}`;
+      data.forEach((value, id) => {
+        if (id > 0) {
           query += `, `;
-          query+= `"${value}"`;
+          query += `"${value}"`;
         }
       });
-      query+=`);`;
+      len++;
+      query += `);`;
       db.exec(query);
     });
     renderTable(event.target.name);
@@ -248,8 +325,28 @@ function loadJson(event) {
   reader.readAsText(file);
 }
 
-// Initialize the database and render data
-initializeDatabase().then(() => {
-  renderHeader();
+function initialUI() {
+  const root = document.getElementById("root");
+  root.innerHTML = "";
+  const fileInp = document.createElement("div");
+  fileInp.innerHTML = `
+  <input name="schema-input" type="file" onchange="loadSchema(event)" style="margin-left: 10px" />
+  `;
+  root.appendChild(fileInp);
+}
 
+function loadSchema(event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
+  reader.readAsText(file);
+
+  reader.onload = (e) => {
+    db.run(e.target.result);
+    renderHeader();
+  };
+}
+
+//Initialize the database and render data
+initializeDatabase().then(() => {
+  initialUI();
 });

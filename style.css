@@ -7,6 +7,23 @@ table {
   border-collapse: collapse;
 }
 
+#table-list{
+  border:1px #000;
+  padding-top: 2%;
+}
+
+.anch {
+  margin-left: 150px;
+  display: inline-table;
+  width: 500px;
+  height: 21px;
+  padding: 5px;
+  border: 1px groove black;
+  /* font-family:monospace; */
+  text-decoration-line: none;
+  color: black;
+}
+
 /* #studinfo,
 #subject,
 #stud_sub {
@@ -48,16 +65,16 @@ td {
 }
 
 body {
-  font-family: Arial, sans-serif;
+  /* font-family: Arial, sans-serif; */
   margin: 20px;
 }
 
-.rollno-container,
-.subno-container {
+.container {
   position: relative;
 }
 
 .dropdown {
+  padding-left: 0;
   position: absolute;
   top: 100%;
   left: 0;
