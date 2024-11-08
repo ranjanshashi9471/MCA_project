@@ -10,7 +10,7 @@ CREATE TABLE
 
 -- Create the gender_table
 CREATE TABLE
-    gender_table (id TEXT, gender TEXT PRIMARY KEY);
+    gender (id TEXT, gender TEXT PRIMARY KEY);
 
 --Create Academic_Year 
 CREATE TABLE
@@ -22,27 +22,27 @@ CREATE TABLE
 
 --Create month_table
 CREATE TABLE
-    month_table (id TEXT, acad_month TEXT PRIMARY KEY);
+    month (id TEXT, acad_month TEXT PRIMARY KEY);
 
 --Create category_table
 CREATE TABLE
-    category_table (id TEXT, category TEXT PRIMARY KEY);
+    category (id TEXT, category TEXT PRIMARY KEY);
 
 -- create blood_group_table
 CREATE TABLE
-    blood_grp_table (id TEXT, blood_grp TEXT PRIMARY KEY);
+    blood_grp (id TEXT, blood_grp TEXT PRIMARY KEY);
 
 --create country_table
 CREATE TABLE
-    country_table (id TEXT, country TEXT PRIMARY KEY);
+    country (id TEXT, country TEXT PRIMARY KEY);
 
 -- create state_table
 CREATE TABLE
-    country_state_table (
+    country_state (
         id TEXT,
         country TEXT,
         stud_state TEXT,
-        FOREIGN KEY (country) REFERENCES country_table (country),
+        FOREIGN KEY (country) REFERENCES country (country),
         PRIMARY KEY (country, stud_state)
     );
 
@@ -54,12 +54,12 @@ CREATE TABLE
         stud_state TEXT,
         district TEXT,
         PRIMARY KEY (country, stud_state, district),
-        FOREIGN KEY (country, stud_state) REFERENCES country_state_table (country, stud_state)
+        FOREIGN KEY (country, stud_state) REFERENCES country_state (country, stud_state)
     );
 
 -- create grade_table
 CREATE TABLE
-    grade_table (id TEXT, grades TEXT PRIMARY KEY);
+    grade (id TEXT, grades TEXT PRIMARY KEY);
 
 --Create Academic_year_semeseter_table
 CREATE TABLE
@@ -71,12 +71,12 @@ CREATE TABLE
         PRIMARY KEY (acad_year, semester),
         FOREIGN KEY (acad_year) REFERENCES academic_year (acad_year),
         FOREIGN KEY (semester) REFERENCES semester (sem),
-        FOREIGN KEY (acad_month) REFERENCES month_table (acad_month)
+        FOREIGN KEY (acad_month) REFERENCES month (acad_month)
     );
 
 -- Create the Student_table
 CREATE TABLE
-    Student (
+    student (
         id TEXT,
         prn_no TEXT,
         roll_no TEXT PRIMARY KEY,
@@ -100,16 +100,16 @@ CREATE TABLE
         blood_grp TEXT,
         course_id TEXT,
         FOREIGN KEY (course_id) REFERENCES Course (course_id),
-        FOREIGN KEY (gender) REFERENCES gender_table (gender),
+        FOREIGN KEY (gender) REFERENCES gender (gender),
         FOREIGN KEY (batch) REFERENCES academic_year (acad_year),
         FOREIGN KEY (country, stud_state, district) REFERENCES country_state_dist (country, stud_state, district),
-        FOREIGN KEY (category) REFERENCES category_table (category),
-        FOREIGN KEY (blood_grp) REFERENCES blood_grp_table (blood_grp)
+        FOREIGN KEY (category) REFERENCES category (category),
+        FOREIGN KEY (blood_grp) REFERENCES blood_grp (blood_grp)
     );
 
 -- Create the Subject table
 CREATE TABLE
-    Subject (
+    subject (
         id TEXT,
         subject_code TEXT PRIMARY KEY,
         sub_name TEXT NOT NULL,
@@ -120,7 +120,7 @@ CREATE TABLE
 
 --create the table sem_subject_table
 CREATE TABLE
-    sem_subject_table (
+    sem_subject (
         id TEXT,
         acad_year TEXT,
         semester TEXT,
@@ -131,14 +131,14 @@ CREATE TABLE
 
 --create faculty_type_table
 CREATE TABLE
-    faculty_type_table (
+    faculty_type (
         id TEXT,
         faculty_type TEXT PRIMARY KEY --visiting, full_time, contract_based
     );
 
 -- Create the Faculty table
 CREATE TABLE
-    Faculty (
+    faculty (
         id TEXT,
         faculty_id TEXT PRIMARY KEY,
         faculty_name TEXT NOT NULL,
@@ -153,7 +153,7 @@ CREATE TABLE
         stud_address TEXT,
         FOREIGN KEY (gender) REFERENCES gender_table (gender),
         FOREIGN KEY (country, stud_state, district) REFERENCES country_state_dist (country, stud_state, district),
-        FOREIGN KEY (faculty_type) REFERENCES faculty_type_table (faculty_type)
+        FOREIGN KEY (faculty_type) REFERENCES faculty_type(faculty_type)
     );
 
 -- Create the semester_subject_teaching table
@@ -166,7 +166,7 @@ CREATE TABLE
         semester TEXT,
         PRIMARY KEY (faculty_id, subject_code, acad_year, semester),
         FOREIGN KEY (faculty_id) REFERENCES Faculty (faculty_id),
-        FOREIGN KEY (acad_year, semester, subject_code) REFERENCES sem_subject_table (acad_year, semester, subject_code)
+        FOREIGN KEY (acad_year, semester, subject_code) REFERENCES sem_subject (acad_year, semester, subject_code)
     );
 
 -- Create the sem_sub_regist table
@@ -185,14 +185,14 @@ CREATE TABLE
 
 --Create the exam_type_table
 CREATE TABLE
-    exam_type_table (
+    exam_type (
         id TEXT,
         exam_type TEXT PRIMARY KEY --internal1,internal2,internal3,external
     );
 
 -- Create the Exams table
 CREATE TABLE
-    Exams (
+    exams (
         id TEXT,
         exam_code TEXT, --(text + year)
         exam_type TEXT,
@@ -207,8 +207,8 @@ CREATE TABLE
             semester,
             subject_code
         ),
-        FOREIGN KEY (acad_year, semester, subject_code) REFERENCES sem_subject_table (acad_year, semester, subject_code),
-        FOREIGN KEY (exam_type) REFERENCES exam_type_table (exam_type)
+        FOREIGN KEY (acad_year, semester, subject_code) REFERENCES sem_subject (acad_year, semester, subject_code),
+        FOREIGN KEY (exam_type) REFERENCES exam_type (exam_type)
     );
 
 --create the stud_exam_table\
