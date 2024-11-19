@@ -1,6 +1,6 @@
 let db; // Global variable to hold the database instance
-var rendered_table = "";
-var row_on_page = 2;
+let rows = 0;
+let row_on_page = 25;
 
 // Function to initialize the database
 function initializeDatabase() {
@@ -98,9 +98,6 @@ function renderStructure(tablename, pagesRendered) {
               Generate Output
           </button>
         </div>
-        <div>
-          <textarea rows = "5" cols="40" name = "${tablename}-query" spellcheck="false" oninput="handleQuery(event, '${tablename}')"></textarea>
-        </div>
       </div>
 
       <div id="${tablename}-output-section" class="hidden">
@@ -142,18 +139,97 @@ function renderHeader(tablename, renderedPages) {
 	renderData(tablename, renderedPages);
 }
 
-function handleQuery(event, tablename) {
-	console.log(event.target.value);
-	console.log(tablename.id);
+// function runQuery(event) {
+// 	// console.log(event);
+// 	const query = document.getElementById(`query-input`).value;
+// 	console.log(query);
+// 	if (query != "") {
+// 		const regexp = /(?<=from)(.*?)(?=where)/g
+// 		const query_table = query
+// 			.match(regexp)[0]
+// 			.split(",")
+// 			.map((tablename, index) => {
+// 				return tablename.trim();
+// 			});
+// 		console.log(query_table);
+// 		const table_attr = query_table.map((element, index) => {
+// 			const tabname = element.split(" ")[0];
+// 			const res = db.exec(`PRAGMA table_info(${tabname});`);
+// 			const cols = res[0].values.map((colArr, id)=>{
+// 				return colArr[1];
+// 			});
+// 			return cols;
+// 		});
+// 		console.log(table_attr);
+
+// 	}
+// }
+
+function returnTables(query) {}
+
+function runQuery(event) {
+	const query = document.getElementById("query-input").value;
+	console.log("Original Query:", query);
+	let table_attr;
+	let query_table;
+	if (query.indexOf("SELECT") != -1) {
+		const regexp =
+			/(?<=from\s)(.*?)(?=;$|\swhere|\sWHERE|\sGROUP\sBY|\sgroup\sby|\sEND|\send|$)/g;
+		query_table = query
+			.match(regexp)[0]
+			.split(",")
+			.map((tablename) => tablename.trim());
+		console.log("Tables found in query:", query_table);
+	} else if (query.indexOf("ALTER") != -1) {
+		const regexp =
+			/(?<=TABLE|table\s)(.*)(?=\sDROP|\sdrop|\sSET|\sset|\sADD|\sadd|\sRENAME|\srename|\sENABLE|\senable|\sDISABLE|\sdisable|\sMODIFY|\smodify)/g;
+		console.log(query.match(regexp));
+	} else if (query.indexOf("UPDATE") != -1) {
+		const regexp = /(?<=UPDATE|update\s)(.*)(?=\sSET|\sset)/g;
+		console.log(query.match(regexp));
+	} else if (query.indexOf("DELETE") != -1) {
+		const regexp = /(?<=FROM|from\s)(.*?)(?=\swhere|\sWHERE|;$|$)/g;
+		console.log(query.match(regexp));
+	}
+	let modifiedQuery = query;
+	table_attr = query_table.map((tablename) => {
+		const tableName = tablename.split(" ");
+		const res = db.exec(`PRAGMA table_info(${tableName[0]});`);
+		if (tableName[1]) {
+			//alias exist
+			const regexp = new RegExp(`/(${tableName[1]}.c\d)/g`);
+			console.log(modifiedQuery.match(regexp));
+			// modifiedQuery = modifiedQuery.replace(regexp, (match) => {
+			// 	console.log("Match is ", match);
+			// const placeholder = match;
+			// const columnIndex = parseInt(placeholder.slice(1));
+			// for (let { tableName, cols } of table_attr) {
+			// 	if (columnIndex < cols.length) {
+			// 		return cols[columnIndex];
+			// 	}
+			// }
+			// return placeholder;
+			// });
+		}
+		const cols = res[0].values.map((colArr) => colArr[1]);
+		return { tableName, cols };
+	});
+	console.log("Columns for each table:", table_attr);
+
+	const placeholderRegex = /\b(c\d+)\b/g;
+
+	console.log("Modified Query:", modifiedQuery);
+	if (query != "") {
+		// You can now run the modifiedQuery or return it for further processing
+	}
 }
 
 function pagination(tablename) {
 	const res = db.exec(`SELECT COUNT(id) from ${tablename};`);
-	let rowsCount = 0;
 	if (res[0]) {
-		rowsCount = res[0].values[0][0];
+		rows = res[0].values[0][0];
 	}
-	const pages = Math.ceil(rowsCount / row_on_page);
+	const pages = Math.ceil(rows / row_on_page);
 	const pagination = document.getElementById(`${tablename}-pagination`);
 	pagination.innerHTML = "";
 	// const prev = document.getElementById(`${tablename}-pagination-prev`);
@@ -196,7 +272,7 @@ function renderData(tablename, rowsCount) {
 						const tableColumn = document.createElement("td");
 						tableColumn.innerHTML = `
               				<div class="container">
-                				<input type="text" name="${res[0].columns[colId]}" value="${coldata}" onkeydown = "insertNewRow('${tablename}', event, ${colId})" oninput="handleInputChange(${data[0]}, event, '${tablename}', ${rowsCount})" }/>
+                				<input type="text" name="${res[0].columns[colId]}" value="${coldata}" onkeydown = "insertNewRow('${tablename}', event, ${colId}, ${rowsCount})" oninput="handleInputChange(${data[0]}, event, '${tablename}', ${rowsCount})" }/>
                 				<ul type = "none" id="${tablename}-${res[0].columns[colId]}-dropdown" class="dropdown">
                   					<!-- List items will be dynamically inserted here -->
                 				</ul>
@@ -213,36 +289,37 @@ function renderData(tablename, rowsCount) {
 	}
 }
 
-function insertNewRow(tableName, event, colNo) {
+function insertNewRow(tableName, event, colNo, pagesRendered) {
 	const totColNo =
 		event.target.parentNode.parentNode.parentNode.childElementCount;
 	if (colNo == totColNo - 1 && event.key == "Enter") {
-		add(tableName);
+		add(tableName, pagesRendered);
 	}
 }
 
 function add(tablename, pagesRendered) {
-	console.log("add called");
-	console.log(tablename);
+	// console.log("add called");
+	// console.log(tablename);
 	const res = db.exec(`PRAGMA table_info (${tablename});`);
 	const result = db.exec(`SELECT MAX(id) from ${tablename};`);
-	var length = result[0].values[0][0];
-	if (length) {
-		console.log(length - "0");
-	} else {
+	// console.log(result);
+	var length = 1;
+	if (result[0].values[0][0]) {
+		length = result[0].values[0][0] - "0";
+		length++;
 		console.log(length);
 	}
-	var query = `INSERT INTO ${tablename} values(${
-		length ? length - "0" + 1 : 1
-	}`;
+	var query = `INSERT INTO ${tablename} values(${length}`;
 	res[0].values.forEach((data, index) => {
 		if (index > 0) {
 			query = query + `, ""`;
 		}
 	});
 	query = query + `);`;
-	const qres = db.exec(query);
-	renderStructure(tablename, 0);
+	(async () => {
+		await db.run(query);
+	})();
+	renderStructure(tablename, Math.floor(rows / row_on_page) * row_on_page);
 }
 
 function handleInputChange(index, event, tableName, renderedPages) {
@@ -287,9 +364,9 @@ function handleInputChange(index, event, tableName, renderedPages) {
 				});
 			}
 			query1 += ` ${name} LIKE "%${value}%";`;
-			console.log(query1);
+			// console.log(query1);
 			result1 = db.exec(query1);
-			console.log(result1);
+			// console.log(result1);
 			const dropdown = document.getElementById(`${tableName}-${name}-dropdown`);
 			dropdown.style.display = "block";
 			dropdown.innerHTML = "";
@@ -345,9 +422,14 @@ function generateOutput(event) {
 	outputSection.classList.remove("hidden");
 }
 
-function remove(index, tableName, renderedPages) {
+function remove(index, tableName, renderedRows) {
 	const res = db.exec(`DELETE FROM ${tableName} where id = ${index}`);
-	renderStructure(tableName, renderedPages);
+	const temp = rows - 1;
+	if (temp % row_on_page == 0) {
+		renderStructure(tableName, temp - row_on_page);
+	} else {
+		renderStructure(tableName, renderedRows);
+	}
 }
 
 function saveJson(event) {
@@ -369,7 +451,8 @@ function loadJson(event, pagesRendered) {
 	const result = db.exec(`SELECT MAX(id) from ${event.target.name};`);
 	let len = 1;
 	if (result[0]) {
-		len += result[0].values[0];
+		len = result[0].values[0][0] - "0";
+		len += 1;
 	}
 	const reader = new FileReader();
 	reader.onload = (e) => {
@@ -391,15 +474,52 @@ function loadJson(event, pagesRendered) {
 	reader.readAsText(file);
 }
 
+function render_rows(event) {
+	if (event.key == "Enter") {
+		const res = document.getElementById("rows");
+		const rowNum = parseInt(res.value);
+
+		const tbody = document.getElementById("data-table");
+		tbody.innerHTML = "";
+		for (let i = 0; i < rowNum; i++) {
+			const create_row = document.createElement("tr");
+			tbody.appendChild(create_row);
+		}
+	}
+}
+
+function render_row_col() {
+	const root = document.getElementById("root");
+	const userInp = document.createElement("div");
+	userInp.innerHTML = `
+  		<div id="user-input">
+    		<label for="rows">Enter number of rows</label>
+    		<input type="number" id="rows" />
+    
+    		<label for="columns">Enter number of columns</label>
+    		<input type="number" id="columns"/>
+			<button onclick= "renderSpreadsheet()">Render Spreadsheet</button>
+  		<div>`;
+	const table = document.createElement("table");
+	const tbody = document.createElement("tbody");
+	tbody.setAttribute("id", "data-table");
+	table.appendChild(tbody);
+	root.appendChild(userInp);
+	root.appendChild(tbody);
+}
+
 function initialUI() {
 	const root = document.getElementById("root");
 	root.innerHTML = "";
 	const fileInp = document.createElement("div");
+	fileInp.setAttribute("id", "query-parent");
 	fileInp.innerHTML = `
-  <button class = "sidepanel-open" onclick = "openSidePanel()">&#9776;</button>
-  <input name="schema-input" type="file" onchange="loadSchema(event)" style="margin-left: 10px" />
-  `;
+		<div id = "schema-inp">
+  			<button class = "sidepanel-open" onclick = "openSidePanel()">&#9776;</button>
+  			<input name="schema-input" type="file" onchange="loadSchema(event)" style="margin-left: 10px" />
+		</div>`;
 	root.appendChild(fileInp);
+	render_row_col();
 }
 
 function loadSchema(event) {
@@ -411,6 +531,17 @@ function loadSchema(event) {
 		renderSidePanel();
 		openSidePanel();
 	};
+	const queryBox = document.createElement("div");
+	queryBox.setAttribute("id", "query-input-div");
+	const root = document.getElementById("query-parent");
+	queryBox.innerHTML = `
+	<div>
+	 	<h3>Enter your query</h3>
+        <textarea rows = "5" cols="40" id = "query-input" spellcheck="false"></textarea>
+		<input type="button"  onclick="runQuery(event)" value="Submit">
+    </div>`;
+	queryBox.setAttribute("id", "query-box");
+	root.appendChild(queryBox);
 }
 
 //Initialize the database and render data

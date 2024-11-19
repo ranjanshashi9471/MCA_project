@@ -1,7 +1,7 @@
 -- Create the Course table
 CREATE TABLE
     Course (
-        id TEXT,
+        id INTEGER,
         course_id TEXT PRIMARY KEY,
         course_name TEXT NOT NULL,
         duration TEXT,
@@ -10,36 +10,36 @@ CREATE TABLE
 
 -- Create the gender_table
 CREATE TABLE
-    gender (id TEXT, gender TEXT PRIMARY KEY);
+    gender (id INTEGER, gender TEXT PRIMARY KEY);
 
 --Create Academic_Year 
 CREATE TABLE
-    academic_year (id TEXT, acad_year TEXT PRIMARY KEY);
+    academic_year (id INTEGER, acad_year TEXT PRIMARY KEY);
 
 -- Create semester_table
 CREATE TABLE
-    semester (id TEXT, sem TEXT PRIMARY KEY);
+    semester (id INTEGER, sem TEXT PRIMARY KEY);
 
 --Create month_table
 CREATE TABLE
-    month (id TEXT, acad_month TEXT PRIMARY KEY);
+    month (id INTEGER, acad_month TEXT PRIMARY KEY);
 
 --Create category_table
 CREATE TABLE
-    category (id TEXT, category TEXT PRIMARY KEY);
+    category (id INTEGER, category TEXT PRIMARY KEY);
 
 -- create blood_group_table
 CREATE TABLE
-    blood_grp (id TEXT, blood_grp TEXT PRIMARY KEY);
+    blood_grp (id INTEGER, blood_grp TEXT PRIMARY KEY);
 
 --create country_table
 CREATE TABLE
-    country (id TEXT, country TEXT PRIMARY KEY);
+    country (id INTEGER, country TEXT PRIMARY KEY);
 
 -- create state_table
 CREATE TABLE
     country_state (
-        id TEXT,
+        id INTEGER,
         country TEXT,
         stud_state TEXT,
         FOREIGN KEY (country) REFERENCES country (country),
@@ -49,7 +49,7 @@ CREATE TABLE
 --create state_table
 CREATE TABLE
     country_state_dist (
-        id TEXT,
+        id INTEGER,
         country TEXT,
         stud_state TEXT,
         district TEXT,
@@ -59,12 +59,12 @@ CREATE TABLE
 
 -- create grade_table
 CREATE TABLE
-    grade (id TEXT, grades TEXT PRIMARY KEY);
+    grade (id INTEGER, grades TEXT PRIMARY KEY);
 
 --Create Academic_year_semeseter_table
 CREATE TABLE
     acad_year_sem (
-        id TEXT,
+        id INTEGER,
         acad_year TEXT,
         semester TEXT,
         acad_month TEXT,
@@ -77,7 +77,7 @@ CREATE TABLE
 -- Create the Student_table
 CREATE TABLE
     student (
-        id TEXT,
+        id INTEGER,
         prn_no TEXT,
         roll_no TEXT PRIMARY KEY,
         stud_name TEXT NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE
 -- Create the Subject table
 CREATE TABLE
     subject (
-        id TEXT,
+        id INTEGER,
         subject_code TEXT PRIMARY KEY,
         sub_name TEXT NOT NULL,
         credits TEXT,
@@ -121,7 +121,7 @@ CREATE TABLE
 --create the table sem_subject_table
 CREATE TABLE
     sem_subject (
-        id TEXT,
+        id INTEGER,
         acad_year TEXT,
         semester TEXT,
         subject_code TEXT,
@@ -132,14 +132,14 @@ CREATE TABLE
 --create faculty_type_table
 CREATE TABLE
     faculty_type (
-        id TEXT,
+        id INTEGER,
         faculty_type TEXT PRIMARY KEY --visiting, full_time, contract_based
     );
 
 -- Create the Faculty table
 CREATE TABLE
     faculty (
-        id TEXT,
+        id INTEGER,
         faculty_id TEXT PRIMARY KEY,
         faculty_name TEXT NOT NULL,
         faculty_type TEXT,
@@ -159,7 +159,7 @@ CREATE TABLE
 -- Create the semester_subject_teaching table
 CREATE TABLE
     semester_subject_teaching (
-        id TEXT,
+        id INTEGER,
         faculty_id TEXT,
         subject_code TEXT,
         acad_year TEXT,
@@ -172,7 +172,7 @@ CREATE TABLE
 -- Create the sem_sub_regist table
 CREATE TABLE
     sem_sub_regist (
-        id TEXT,
+        id INTEGER,
         roll_no TEXT,
         acad_year TEXT,
         semester TEXT,
@@ -186,14 +186,14 @@ CREATE TABLE
 --Create the exam_type_table
 CREATE TABLE
     exam_type (
-        id TEXT,
+        id INTEGER,
         exam_type TEXT PRIMARY KEY --internal1,internal2,internal3,external
     );
 
 -- Create the Exams table
 CREATE TABLE
     exams (
-        id TEXT,
+        id INTEGER,
         exam_code TEXT, --(text + year)
         exam_type TEXT,
         exam_date TEXT,
@@ -214,7 +214,7 @@ CREATE TABLE
 --create the stud_exam_table\
 CREATE TABLE
     student_exams (
-        id TEXT,
+        id INTEGER,
         roll_no TEXT,
         acad_year TEXT,
         semester TEXT,
