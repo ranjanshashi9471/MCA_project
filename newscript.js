@@ -1,6 +1,6 @@
 //global variables
 let db; // Global variable to hold the database instance
-let rows = 0;
+let tableno = 0;
 let chunkSize = 50;
 
 // Function to initialize the database
@@ -11,6 +11,19 @@ function initializeDatabase() {
 	});
 }
 
+function addNewSheetInput() {
+	const space = document.getElementById("rest-all-input");
+	space.innerHTML = "";
+	space.innerHTML = `
+  		<div id="user-input">
+    		<input type="number" id="rows" placeholder = "Enter number of rows"/>
+    		<input type="number" id="columns" placeholder = "Enter number of columns (max 26)"/>
+			<button onclick= "renderNewSpreadsheet()">Render Spreadsheet</button>
+  		<div>`;
+	closeSidePanel();
+}
+
+//this function displays UI for the schema input
 function renderSchemaInput() {
 	const space = document.getElementById("rest-all-input");
 	space.innerHTML = "";
@@ -27,27 +40,26 @@ function renderSQLInput() {
 	closeSidePanel();
 }
 
-function addNewSheetInput() {
-	const space = document.getElementById("rest-all-input");
-	space.innerHTML = "";
-	space.innerHTML = `
-  		<div id="user-input">
-    		<input type="number" id="rows" placeholder = "Enter number of rows"/>
-    		<input type="number" id="columns" placeholder = "Enter number of columns (max 26)"/>
-			<button onclick= "renderNewSpreadsheet()">Render Spreadsheet</button>
-  		<div>`;
-	closeSidePanel();
+//function to handle sqlfile
+async function loadSchema(event) {
+	const file = event.target.files[0];
+	const buffer = await file.arrayBuffer();
+	const SQL = await initSqlJs();
+	db = new SQL.Database(new Uint8Array(buffer));
+	renderSheetsNames();
+	openSidePanel();
 }
 
 function renderNewSpreadsheet() {
 	const rows = document.getElementById("rows").value;
 	const columns = document.getElementById("columns").value % 26;
-	const randomname = `a` + Math.floor(Math.random() * 10000);
+	const randomname = `untitled` + Math.floor(Math.random() * 100);
 	let query = `CREATE TABLE ${randomname} (c0 INTEGER PRIMARY KEY`;
 
 	//constructing query to create table
 	for (let i = 1; i < columns; i++) {
 		query += ` ,"c${i}" TEXT`;
+		initSqlJs().then((SQL) => {});
 	}
 	query += `);`;
 
@@ -76,6 +88,19 @@ function renderNewSpreadsheet() {
 	renderSheet(randomname);
 }
 
+function generateDBdump(event) {
+	const dump = db.export();
+	const dumpBlob = new Blob([dump], { type: "application/octet-stream" });
+	const dumpUrl = URL.createObjectURL(dumpBlob);
+
+	const a = document.createElement("a");
+	a.href = dumpUrl;
+	a.download = "database-dump.sql";
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+}
+
 function renderSheet(sheetName) {
 	const restInput = document.getElementById("rest-all-input");
 	restInput.innerHTML = "";
@@ -86,11 +111,12 @@ function renderSheet(sheetName) {
               Save JSON
           </button>
           <input name="${sheetName}" type="file" id ="${sheetName}-loadjson" onchange = "loadJson(event)" style="margin-left: 10px" />
-          <button name="${sheetName}" onclick="generateOutput(event)" style="margin-left: 10px">
-              Generate Output
+          <button name="${sheetName}" onclick="generateDBdump(event)" style="margin-left: 10px">
+              Generate DB dump
           </button>
         </div>
 	`;
+
 	//rendering the structure of sheet
 	const userSelect = document.getElementById("user-select");
 	userSelect.innerHTML = "";
@@ -131,6 +157,7 @@ function renderSheet(sheetName) {
 		});
 		dataInput.appendChild(tableRow);
 	});
+	closeSidePanel();
 }
 
 function handleInputChange(event, sheetName, row, col) {
@@ -139,8 +166,6 @@ function handleInputChange(event, sheetName, row, col) {
 }
 
 function add(tablename, pagesRendered) {
-	// console.log("add called");
-	// console.log(tablename);
 	const res = db.exec(`PRAGMA table_info (${tablename});`);
 	const result = db.exec(`SELECT MAX(id) from ${tablename};`);
 	// console.log(result);
@@ -160,17 +185,6 @@ function add(tablename, pagesRendered) {
 	db.run(query);
 }
 
-function loadSchema(event) {
-	const file = event.target.files[0];
-	const reader = new FileReader();
-	reader.readAsText(file);
-	reader.onload = (e) => {
-		db.run(e.target.result);
-		renderSheetsNames();
-		openSidePanel();
-	};
-}
-
 //sidepanel handlers
 function openSidePanel() {
 	document.getElementById("sidepanel-items").style.width = "250px";
@@ -186,7 +200,7 @@ function renderSidePanel() {
 	root.innerHTML = `
     <div id = "sidepanel-items" class = "sidepanel">
       <div id = "options">
-        <a href = "javascript:void(0)" class = "sidepanel-close" onclick = "closeSidepanel()">&times;</a>
+        <a class = "sidepanel-close" onclick = "closeSidePanel()">&times;</a>
         <a onclick = "addNewSheetInput()">Add new Sheet</a>
         <a onclick = "renderSchemaInput()">Load from Schema Dump</a>
         <a onclick = "renderSQLInput()">Run SQL query</a>
