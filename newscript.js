@@ -31,12 +31,12 @@ function renderSchemaInput() {
 	closeSidePanel();
 }
 
+//Renders query input elements
 function renderSQLInput() {
 	const space = document.getElementById("rest-all-input");
 	space.innerHTML = "";
-	space.innerHTML = `<h3>Enter your query</h3>
-        <textarea rows = "5" cols="40" id = "query-input" spellcheck="false"></textarea>
-		<input type="button"  onclick="runQuery(event)" value="Submit">`;
+	space.innerHTML = `<textarea rows = "5" cols="40" id = "query-input" spellcheck="false" placeholder="Enter your query"></textarea>
+			<button onclick = "runSQLQuery()">Submit</button>`;
 	closeSidePanel();
 }
 
@@ -50,6 +50,20 @@ async function loadSchema(event) {
 	openSidePanel();
 }
 
+function runSQLQuery() {
+	const query = document.getElementById("query-input").value;
+	console.log(query);
+	try {
+		const res = db.exec(query);
+		if (res[0]) {
+			console.log(res);
+		}
+	} catch (error) {
+		console.log(error);
+	}
+}
+
+//creating sheet in db with user specified rows and columns
 function renderNewSpreadsheet() {
 	const rows = document.getElementById("rows").value;
 	const columns = document.getElementById("columns").value % 26;
@@ -64,7 +78,11 @@ function renderNewSpreadsheet() {
 	query += `);`;
 
 	//creating table
-	db.run(query);
+	try {
+		db.run(query);
+	} catch (error) {
+		console.log("Error Creating new table");
+	}
 	renderSheetsNames();
 
 	console.log("created table");
@@ -83,7 +101,11 @@ function renderNewSpreadsheet() {
 		}
 		query += `;`;
 		//insering empty rows
-		db.run(query);
+		try {
+			db.run(query);
+		} catch (error) {
+			console.log("Error Inserting Data at iter: ", k);
+		}
 	}
 	renderSheet(randomname);
 }
@@ -101,6 +123,7 @@ function generateDBdump(event) {
 	a.remove();
 }
 
+//loading the specified table(sheet)
 function renderSheet(sheetName) {
 	const restInput = document.getElementById("rest-all-input");
 	restInput.innerHTML = "";
