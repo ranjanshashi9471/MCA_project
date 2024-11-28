@@ -57,8 +57,37 @@ function runSQLQuery() {
 		const res = db.exec(query);
 		if (res[0]) {
 			console.log(res);
+			const output = document.getElementById("user-select");
+			output.innerHTML = `
+			<table border="1">
+	            <thead>
+              		<tr class = "table-header" id = "tmp_header"></tr>
+            	</thead>
+            	<tbody id="tmp-data-output" class = "table-body">
+              		<!-- Dynamic rows will be added here -->
+            	</tbody>
+        	</table>`;
+			const header = document.getElementById("tmp_header");
+			const tbody = document.getElementById("tmp-data-output");
+			const headrow = document.createElement("tr");
+			res[0].columns.forEach((data, index) => {
+				const hbody = document.createElement("td");
+				hbody.innerHTML = data;
+				headrow.appendChild(hbody);
+			});
+			header.appendChild(headrow);
+			res[0].values.forEach((row, rowid) => {
+				const bodyrow = document.createElement("tr");
+				row.forEach((col, colid) => {
+					const bodydata = document.createElement("td");
+					bodydata.innerHTML = col;
+					bodyrow.appendChild(bodydata);
+				});
+				tbody.appendChild(bodyrow);
+			});
 		}
 	} catch (error) {
+		alert("Error Executing Query");
 		console.log(error);
 	}
 }
@@ -105,6 +134,7 @@ function renderNewSpreadsheet() {
 			db.run(query);
 		} catch (error) {
 			console.log("Error Inserting Data at iter: ", k);
+			break;
 		}
 	}
 	renderSheet(randomname);
@@ -120,7 +150,57 @@ function generateDBdump(event) {
 	a.download = "database-dump.sql";
 	document.body.appendChild(a);
 	a.click();
-	a.remove();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
+//generating and saving the dump for a table
+function saveJson(event) {
+	const res = db.exec(`SELECT * FROM ${event.target.name};`);
+	const jsonData = JSON.stringify(res);
+	const blob = new Blob([jsonData], { type: "application/json" });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = `${event.target.name}_data.json`;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
+//loading a tabledata from json
+function loadJson(event) {
+	const file = event.target.files[0];
+	const result = db.exec(`SELECT MAX(c0) from ${event.target.name};`);
+	let len = 1;
+	if (result[0]) {
+		len = result[0].values[0][0] - "0";
+		len += 1;
+	}
+	const reader = new FileReader();
+	reader.onload = (e) => {
+		const res = JSON.parse(e.target.result);
+		res[0].values.forEach((data) => {
+			var query = `INSERT INTO ${event.target.name} VALUES (${len}`;
+			data.forEach((value, id) => {
+				if (id > 0) {
+					query += `, `;
+					query += `"${value}"`;
+				}
+			});
+			len++;
+			query += `);`;
+			try {
+				db.run(query);
+			} catch (error) {
+				alert("Error while inserting Data from file");
+				// break;
+			}
+		});
+		renderSheet(event.target.name);
+	};
+	reader.readAsText(file);
 }
 
 //loading the specified table(sheet)
