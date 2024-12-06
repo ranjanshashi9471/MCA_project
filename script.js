@@ -330,6 +330,7 @@ function handleInputChange(index, event, tableName, renderedPages) {
 		var relColumns = [];
 		result[0].values.forEach((col, colId) => {
 			if (col[3] == name) {
+				//col[3] represents colname of refereing table
 				tab = col[2];
 			}
 		});

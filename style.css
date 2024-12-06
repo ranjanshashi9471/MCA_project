@@ -4,24 +4,45 @@ body {
 	font-family: sans-serif;
 }
 
-#root {
-	margin: 0;
-	padding: 0;
-}
-
 h2 {
 	text-align: left;
 }
 
 table {
+	 width: 100%;
+  table-layout: fixed; 
 	margin-top: 10px;
-	/* width: 100%; */
+	/*table-layout:auto; 
+	/* width: 100%;*/
 	border-collapse: collapse;
-	border: 2px solid #000;
+	/* border: 2px solid black;
+	background-color: #f3f3f3; */
+	border: 2px solid #444;
+	/* background-color: #fafafa;  */
+	font-size: 14px; 
+	/* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  */
 }
 
+
+
 thead {
-	border: 2px solid #000;
+	border: 1.5px solid #000;
+	background-color: #e0e0e0; 
+	color: #333; 
+	font-weight: bold;
+
+}
+thead tr {
+	position: sticky;
+	top: 0; 
+	z-index: 1;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
+}
+
+th, td {
+	/* padding: 8px 12px;  */
+	text-align: left;
+	
 }
 
 #sidepanel-items {
@@ -29,66 +50,57 @@ thead {
 	padding-top: 2%;
 }
 
+.resize {
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 5px;
+	height: 100%;
+	cursor: col-resize;
+	background: transparent;
+}
+
 #input-space,
-#rest-all-input,
-#user-select {
+#rest-all-input {
 	margin-left: 20px;
 	display: flex;
 	flex-direction: row;
 	justify-content: space-between;
 }
 
-/* .anch {
-  font-size:xx-small;
-  margin-left: 150px;
-  display: inline-table;
-  width: 500px;
-  height: 21px;
-  padding: 5px;
-  border: 1px groove black;
-  text-decoration-line: none;
-  color: black;
-} */
+thead tr{
+	position: sticky;
 
-/* #studinfo,
-#subject,
-#stud_sub {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: 1fr;
-  grid-column-gap: 0px;
-  grid-row-gap: 0px;
-} */
+}
 
-/* #studinfo-input,
-#subject-input,
-#studsub-input {
-  grid-area: 1 / 1 / 2 / 2;
-  margin: 0 2% 2% 5%;
-} */
-
-/* #output-section,
-#subject-output-section,
-#studsub-output-section {
-  grid-area: 1 / 2 / 2 / 3;
-  margin: 0 5% 2% 2%;
-} */
-
-th,
-td {
+th {
+	width: 200px;
 	margin: 2% 4% 2%;
-	border: 1px solid black;
+	position: relative;
+	background-color: #f3f3f3;
+	/* width: 100%; */
+	/* white-space: nowrap; */
+}
+
+
+td {
+	width: 200px;
+	justify-items: center;
+	/* margin: 2% 4% 2%; */
+	/* border: 1px solid black; */
+}
+th:first-child, 
+td:first-child {
+    width: 30px; 
+    text-align: center; 
+    background-color: #f5f5f5; 
+    font-weight: bold;
+	
 }
 
 td input {
+	width: 197px;
 	border: transparent;
-	/* width: fit-content; */
-}
-
-#stdin,
-#subin,
-#studsubin {
-	width: 100%;
 }
 
 .hidden {
@@ -134,16 +146,24 @@ body {
 
 /* The sidepanel menu */
 .sidepanel {
-	height: 100%; /* Specify a height */
-	width: 0; /* 0 width - change this with JavaScript */
-	position: fixed; /* Stay in place */
-	z-index: 1; /* Stay on top */
+	height: 100%;
+	/* Specify a height */
+	width: 0;
+	/* 0 width - change this with JavaScript */
+	position: fixed;
+	/* Stay in place */
+	z-index: 1;
+	/* Stay on top */
 	top: 0;
 	left: 0;
-	background-color: #111; /* Black*/
-	overflow-x: hidden; /* Disable horizontal scroll */
-	padding-top: 60px; /* Place content 60px from the top */
-	transition: 0.5s; /* 0.5 second transition effect to slide in the sidepanel */
+	background-color: #111;
+	/* Black*/
+	overflow-x: hidden;
+	/* Disable horizontal scroll */
+	padding-top: 60px;
+	/* Place content 60px from the top */
+	transition: 0.5s;
+	/* 0.5 second transition effect to slide in the sidepanel */
 }
 
 /* The sidepanel links */
@@ -204,19 +224,11 @@ body {
 }
 
 /* Style the active/current link */
-.pagination a.active {
+/* .pagination a.active {
 	background-color: dodgerblue;
 	color: white;
 }
+
 .pagination a:hover:not(.active) {
 	background-color: #ddd;
-}
-*/ #query-parent {
-	display: inline-flex;
-	justify-content: space-between;
-	width: 55%;
-}
-#query-box {
-	padding: 0;
-	margin: 0;
-}
+} */
