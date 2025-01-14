@@ -9,8 +9,8 @@ h2 {
 }
 
 table {
-	 width: 100%;
-  table-layout: fixed; 
+	width: auto;
+	table-layout: fixed;
 	margin-top: 10px;
 	/*table-layout:auto; 
 	/* width: 100%;*/
@@ -19,30 +19,27 @@ table {
 	background-color: #f3f3f3; */
 	border: 2px solid #444;
 	/* background-color: #fafafa;  */
-	font-size: 14px; 
+	font-size: 14px;
 	/* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  */
 }
 
-
-
 thead {
 	border: 1.5px solid #000;
-	background-color: #e0e0e0; 
-	color: #333; 
+	background-color: #e0e0e0;
+	color: #333;
 	font-weight: bold;
-
 }
 thead tr {
 	position: sticky;
-	top: 0; 
+	top: 0;
 	z-index: 1;
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-th, td {
+th,
+td {
 	/* padding: 8px 12px;  */
 	text-align: left;
-	
 }
 
 #sidepanel-items {
@@ -68,9 +65,8 @@ th, td {
 	justify-content: space-between;
 }
 
-thead tr{
+thead tr {
 	position: sticky;
-
 }
 
 th {
@@ -82,20 +78,18 @@ th {
 	/* white-space: nowrap; */
 }
 
-
 td {
 	width: 200px;
 	justify-items: center;
 	/* margin: 2% 4% 2%; */
 	/* border: 1px solid black; */
 }
-th:first-child, 
+th:first-child,
 td:first-child {
-    width: 30px; 
-    text-align: center; 
-    background-color: #f5f5f5; 
-    font-weight: bold;
-	
+	width: 30px;
+	text-align: center;
+	background-color: #f5f5f5;
+	font-weight: bold;
 }
 
 td input {

@@ -2,6 +2,8 @@
 let db; // Global variable to hold the database instance
 let tableno = 0;
 let chunkSize = 50;
+const columnLimit = 100000;
+const rowLimit = 100000;
 
 // Function to initialize the database
 function initializeDatabase() {
@@ -10,6 +12,47 @@ function initializeDatabase() {
 		console.log("Database created");
 	});
 }
+
+//Navigation Key Support
+document.addEventListener("keydown", (e) => {
+	const focused_element = document.activeElement;
+	if (
+		focused_element.tagName == "INPUT" &&
+		focused_element.parentElement.parentElement.tagName == "TD"
+	) {
+		const cellIndex = focused_element.parentElement.parentElement.cellIndex;
+		const rowIndex =
+			focused_element.parentElement.parentElement.parentElement.rowIndex;
+		const table = document.getElementById("user-select");
+		const rows = table.firstElementChild.rows;
+		switch (e.key) {
+			case "ArrowUp":
+				if (rowIndex > 1)
+					rows[rowIndex - 1].cells[
+						cellIndex
+					].firstElementChild.firstElementChild.focus();
+				break;
+			case "ArrowDown":
+				if (rowIndex < rows.length - 1)
+					rows[rowIndex + 1].cells[
+						cellIndex
+					].firstElementChild.firstElementChild.focus();
+				break;
+			case "ArrowLeft":
+				if (cellIndex > 1)
+					rows[rowIndex].cells[
+						cellIndex - 1
+					].firstElementChild.firstElementChild.focus();
+				break;
+			case "ArrowRight":
+				if (cellIndex < rows[rowIndex].cells.length - 1)
+					rows[rowIndex].cells[
+						cellIndex + 1
+					].firstElementChild.firstElementChild.focus();
+				break;
+		}
+	}
+});
 
 //renders input elements for input rows and columns
 function addNewSheetInput() {
@@ -120,51 +163,365 @@ function runSQLQuery() {
 }
 
 //creating sheet in db with user specified rows and columns
-function renderNewSpreadsheet() {
-	const rows = document.getElementById("user-rows").value;
-	const columns = document.getElementById("user-columns").value % 26;
-	const randomname = `untitled` + Math.floor(Math.random() * 100);
-	let query = `CREATE TABLE ${randomname} (c0 INTEGER PRIMARY KEY`;
+async function renderNewSpreadsheet() {
+	spreadsheet.rowCount = document.getElementById("user-rows").value;
+	spreadsheet.colCount =
+		document.getElementById("user-columns").value % columnLimit;
+	spreadsheet.sheetName = `untitled` + Math.floor(Math.random() * 100);
+	spreadsheet.colRowTree = null;
 
-	//constructing query to create table
-	for (let i = 1; i < columns; i++) {
-		query += ` ,"c${i}" TEXT`;
-	}
-	query += `);`;
+	const colList = renderTableStructure(
+		spreadsheet.sheetName,
+		spreadsheet.colCount
+	);
+	appendEmptyRows(spreadsheet.sheetName, colList, spreadsheet.rowCount);
 
-	//creating table
-	try {
-		db.run(query);
-	} catch (error) {
-		console.log("Error Creating new table");
-	}
-	renderSheetsNames();
+	// let query = `CREATE TABLE ${randomName} (c0 INTEGER PRIMARY KEY`;
+	// const colNameList = [];
+	// colNameList.push("c0");
 
-	console.log("created table");
-	const noOfIterations = Math.ceil(rows / chunkSize);
-	for (let k = 0; k < noOfIterations; k++) {
-		const limit = Math.min(rows, (k + 1) * chunkSize - 1);
-		const start = k * chunkSize;
-		query = `INSERT INTO ${randomname} values`;
-		for (let i = start; i < limit; i++) {
-			if (i != start) query += `, (${i}`;
-			else query += ` (${i}`;
-			for (let j = 1; j < columns; j++) {
-				query += ` ,""`;
-			}
-			query += `)`;
-		}
-		query += `;`;
-		//insering empty rows
-		try {
-			db.run(query);
-		} catch (error) {
-			console.log("Error Inserting Data at iter: ", k);
-			break;
-		}
-	}
-	renderSheet(randomname);
+	// //constructing query to create table
+	// for (let i = 1; i < columns; i++) {
+	// 	query += ` ,"c${i}" TEXT`;
+	// 	colNameList.push(`c${i}`);
+	// }
+	// query += `);`;
+
+	// //creating table
+	// try {
+	// 	db.run(query);
+	// } catch (error) {
+	// 	console.log("Error Creating new table");
+	// }
+	// renderSheetsNames();
+
+	// console.log("created table");
+	// const noOfIterations = Math.ceil(rows / chunkSize);
+	// for (let k = 0; k < noOfIterations; k++) {
+	// 	const limit = Math.min(rows, (k + 1) * chunkSize - 1);
+	// 	const start = k * chunkSize;
+	// 	query = `INSERT INTO ${randomname} values`;
+	// 	for (let i = start; i < limit; i++) {
+	// 		if (i != start) query += `, (${i}`;
+	// 		else query += ` (${i}`;
+	// 		for (let j = 1; j < columns; j++) {
+	// 			query += ` ,""`;
+	// 		}
+	// 		query += `)`;
+	// 	}
+	// 	query += `;`;
+	// 	//insering empty rows
+	// 	try {
+	// 		db.run(query);
+	// 	} catch (error) {
+	// 		console.log("Error Inserting Data at iter: ", k);
+	// 		break;
+	// 	}
+	// }
 }
+
+//loading the specified table(sheet)
+function renderSheet(sheetName) {
+	closeSidePanel();
+	renderTableStructure(sheetName);
+	renderTableData(sheetName);
+}
+
+//rendering the structure of sheet
+function renderTableStructure(sheetName, colCount = null) {
+	const sheetColList = [];
+	const userSelect = document.getElementById("user-select");
+	userSelect.innerHTML = `
+        <table border="1">
+            <thead>
+              <tr class = "table-header" id = "${sheetName}_header"></tr>
+            </thead>
+            <tbody id="${sheetName}-data-input" class = "table-body">
+              <!-- Dynamic rows will be added here -->
+            </tbody>
+        </table>
+    `;
+	const tableHeader = document.getElementById(`${sheetName}_header`);
+	let result = null;
+	try {
+		result = db.exec(`PRAGMA table_info("${sheetName}");`);
+		if (result[0]) {
+			result[0].values.forEach((colname, index) => {
+				sheetColList.push(colname[1]);
+				const headerDesc = document.createElement("th");
+				headerDesc.innerHTML = `${colname[1]}`;
+				const div = document.createElement("div");
+				headerDesc.classList.add(`${colname[1]}`);
+				div.classList.add(`${colname[1]}_resize`);
+				div.classList.add(`resize`);
+				headerDesc.appendChild(div);
+				tableHeader.appendChild(headerDesc);
+			});
+		} else {
+			sheetColList.length = 0;
+			for (let i = 0; i < colCount; i++) {
+				sheetColList.push(`c${i}`);
+				const headerDesc = document.createElement("th");
+				headerDesc.innerHTML = `${sheetColList[i]}`;
+				const div = document.createElement("div");
+				headerDesc.classList.add(`${sheetColList[i]}`);
+				div.classList.add(`${sheetColList[i]}_resize`);
+				div.classList.add(`resize`);
+				headerDesc.appendChild(div);
+				tableHeader.appendChild(headerDesc);
+			}
+		}
+	} catch (error) {
+		console.error(error);
+	}
+	const restInput = document.getElementById("rest-all-input");
+	restInput.innerHTML = `
+		<div style="margin: 10px 0px; display:flex; flex-direction:row;">
+			<div>
+				<input type = "number" id = "${sheetName}-row-input" placeholder= "Enter Row Count."/>
+				<button onclick="insertRows('${sheetName}', '${sheetColList}')" style = "margin-left: 10px">Insert Empty Rows</button>
+			</div>
+          	<button name="${sheetName}" id ="${sheetName}-add" onclick = "saveToDb('${sheetName}')" style = "margin-left: 10px">Save Sheet ${sheetName}</button>
+          	<button name="${sheetName}" onclick="saveJson(event)" style="margin-left: 10px">
+              Save JSON
+          	</button>
+          	<input name="${sheetName}" type="file" id ="${sheetName}-loadjson" onchange = "loadJson(event)" style="margin-left: 10px" />
+          	<button name="${sheetName}" onclick="generateDBdump(event)" style="margin-left: 10px">
+              Generate DB dump
+          	</button>
+        </div>`;
+
+	//resizing elements
+	const divclass = document.querySelectorAll(".resize");
+	divclass.forEach((resizer) => {
+		resizer.addEventListener("mousedown", (e) => {
+			const th = e.target.parentElement;
+			const col_class = th.classList[0];
+			const startWidth = th.offsetWidth;
+			const startX = e.pageX;
+
+			const onMouseMove = (e) => {
+				const newWidth = startWidth + (e.pageX - startX);
+				if (newWidth >= 50) {
+					document.querySelectorAll(`.${col_class}`).forEach((resizer) => {
+						if (resizer.nodeName == "INPUT") {
+							resizer.style.width = `${newWidth - 3}px`;
+						} else {
+							resizer.style.width = `${newWidth}px`;
+						}
+					});
+				}
+			};
+
+			const onMouseUp = () => {
+				document.removeEventListener("mousemove", onMouseMove);
+				document.removeEventListener("mouseup", onMouseUp);
+			};
+
+			document.addEventListener("mousemove", onMouseMove);
+			document.addEventListener("mouseup", onMouseUp);
+		});
+	});
+	return sheetColList;
+}
+
+function renderTableData(sheetName) {
+	const dataInput = document.getElementById(`${sheetName}-data-input`);
+
+	//rendering rows and columns
+	try {
+		const result = db.exec(`Select * from ${sheetName};`);
+		if (result[0]) {
+			result[0].values.forEach((row, rowId) => {
+				const tableRow = document.createElement("tr");
+				row.forEach((col, colId) => {
+					const tableCol = document.createElement("td");
+					if (colId != 0) {
+						tableCol.innerHTML = `
+					<div class="container">
+                		<input class="${result[0].columns[colId]}" type="text" name= "${sheetName}" oninput = "handleInputChange(event, ${row[0]}, '${result[0].columns[colId]}')" value = "${col}" />
+
+                		<ul type = "none" id="${sheetName}-${result[0].columns[colId]}-dropdown" class="dropdown">
+                  			<!-- List items will be dynamically inserted here -->
+                		</ul>
+              		</div>`;
+						tableCol.classList.add(`${result[0].columns[colId]}`);
+					} else {
+						tableCol.innerHTML = `${col}`;
+					}
+					tableRow.appendChild(tableCol);
+				});
+				dataInput.appendChild(tableRow);
+			});
+		}
+	} catch (error) {
+		console.error(error);
+	}
+}
+
+function insertRows(sheetName, colList) {
+	//colList is string with all the colnames separated by ','
+	const rows = document.getElementById(`${sheetName}-row-input`).value;
+	appendEmptyRows(sheetName, colList.split(","), rows);
+}
+
+function appendEmptyRows(sheetName, colsList, rows) {
+	const colCount = colsList.length;
+	const table_body = document.getElementById(`${sheetName}-data-input`);
+	let prev_rows = 0;
+	try {
+		prev_rows = table_body.lastChild.firstChild.innerHTML - "0";
+	} catch (error) {
+		// console.error(error);
+		console.log("Prev rows not found rendering from 0");
+	}
+	console.log(prev_rows);
+	for (let i = 0; i < rows; i++) {
+		const bodyRow = document.createElement("tr");
+		for (let j = 0; j < colCount; j++) {
+			const tableCol = document.createElement("td");
+			if (j != 0) {
+				tableCol.innerHTML = `
+					<div class="container">
+                		<input class="${colsList[j]}"
+							type="text"
+							name= "${sheetName}"
+							oninput = "handleInputChange(event,${prev_rows + i + 1}, '${colsList[j]}')" />
+
+                		<ul type = "none"
+							id="${sheetName}-${colsList[j]}-dropdown" class="dropdown">
+                  			<!-- List items will be dynamically inserted here -->
+                		</ul>
+              		</div>`;
+				tableCol.classList.add(`${colsList[j]}`);
+			} else {
+				tableCol.innerHTML = `${prev_rows + i + 1}`;
+			}
+			bodyRow.appendChild(tableCol);
+		}
+		table_body.appendChild(bodyRow);
+	}
+
+	// const noOfIterations = Math.ceil(rows / chunkSize);
+	// let query = "";
+	// for (let k = 0; k < noOfIterations; k++) {
+	// 	const limit = Math.min(rows, (k + 1) * chunkSize - 1);
+	// 	const start = k * chunkSize;
+	// 	query = `INSERT INTO ${sheetName} values`;
+	// 	for (let i = start; i < limit; i++) {
+	// 		if (i != start) query += `, (${i}`;
+	// 		else query += ` (${i}`;
+	// 		for (let j = 1; j < colCount; j++) {
+	// 			query += ` ,""`;
+	// 		}
+	// 		query += `)`;
+	// 	}
+	// 	query += `;`;
+	// 	//insering empty rows
+	// 	try {
+	// 		db.run(query);
+	// 	} catch (error) {
+	// 		alert("Error Inserting Data at iter: ", k);
+	// 		console.log(error);
+	// 		break;
+	// 	}
+	// }
+	// renderSheet(sheetName);
+}
+
+//function to save the context on input
+function handleInputChange(event, rowno, colname) {
+	const { name, value } = event.target;
+	let result; //name represent sheetnames
+	try {
+		result = db.exec(`PRAGMA foreign_key_list(${name});`);
+		if (result[0]) {
+			let tab = "";
+			var relColumns = [];
+			result[0].values.forEach((col, colId) => {
+				if (col[3] == colname) {
+					//col[3] represents colname of refereing table
+					tab = col[2];
+				}
+			});
+			if (tab != "") {
+				result[0].values.forEach((col, colId) => {
+					if (col[2] == tab && col[3] != colname) {
+						relColumns.push(col[3]);
+					}
+				});
+				var len = relColumns.length;
+				var query1 = "";
+				var result1;
+				if (len > 0) {
+					query1 = `select `;
+					relColumns.forEach((data, id) => {
+						if (id != len - 1) {
+							query1 += `${data},`;
+						} else {
+							query1 += `${data} `;
+						}
+					});
+					query1 += `from ${name} where id = ${rowno}`;
+					result1 = db.exec(query1);
+				}
+				query1 = `SELECT distinct(${colname}) from ${tab} where`;
+				if (result1) {
+					len = result1[0].columns.length;
+					result1[0].values[0].forEach((data, id) => {
+						if (data != "") {
+							query1 += ` ${result1[0].columns[id]} = "${data}" AND`;
+						}
+					});
+				}
+				query1 += ` ${colname} LIKE "%${value}%";`;
+				result1 = db.exec(query1);
+				const dropdown = document.getElementById(`${name}-${colname}-dropdown`);
+				dropdown.style.display = "block";
+				dropdown.innerHTML = "";
+				if (result1[0]) {
+					result1[0].values.forEach((data, id) => {
+						const li = document.createElement("li");
+						li.innerHTML = data;
+						li.id = data;
+						li.addEventListener("click", (e) => {
+							dropdown.style.display = "none";
+							(async () => {
+								await db.run(
+									`UPDATE ${name} SET ${colname} = "${e.target.id}" where id = ${rowno};`
+								);
+								renderSheet(name);
+							})();
+						});
+						dropdown.appendChild(li);
+					});
+				}
+			} else {
+				db.run(
+					`UPDATE ${name} SET ${colname} = "${value}" WHERE c0 = ${rowno};`
+				);
+			}
+		} else {
+			db.run(`UPDATE ${name} SET ${colname} = "${value}" WHERE c0 = ${rowno};`);
+		}
+	} catch (error) {
+		console.error(error);
+		console.log("Error in handleInputChange");
+		spreadsheet.colRowTree = insertData(
+			spreadsheet.colRowTree,
+			rowno,
+			colname,
+			value
+		);
+		console.dir(spreadsheet, null);
+	}
+}
+
+//saving to Database
+const saveToDb = (sheetName) => {
+	console.log(spreadsheet.sheetName);
+	console.log(sheetName);
+};
 
 function generateDBdump(event) {
 	const dump = db.export();
@@ -282,282 +639,6 @@ function loadJson(event) {
 	};
 }
 
-//loading the specified table(sheet)
-function renderSheet(sheetName) {
-	let sheet_col_len = 0;
-	//rendering the structure of sheet
-	const userSelect = document.getElementById("user-select");
-	userSelect.innerHTML = "";
-	userSelect.innerHTML = `
-        <table border="1">
-            <thead>
-              <tr class = "table-header" id = "${sheetName}_header"></tr>
-            </thead>
-            <tbody id="${sheetName}-data-input" class = "table-body">
-              <!-- Dynamic rows will be added here -->
-            </tbody>
-        </table>
-    `;
-	const dataInput = document.getElementById(`${sheetName}-data-input`);
-	const tableHeader = document.getElementById(`${sheetName}_header`);
-	const result = db.exec(`Select * from ${sheetName};`);
-	if (result[0]) {
-		result[0].columns.forEach((colname, index) => {
-			const headerDesc = document.createElement("th");
-			headerDesc.innerHTML = `${colname}`;
-
-			const div = document.createElement("div");
-			if (index != 0) {
-				headerDesc.classList.add(`${colname}`);
-				div.classList.add(`${colname}_resize`);
-				div.classList.add(`resize`);
-				headerDesc.appendChild(div);
-			}
-
-			tableHeader.appendChild(headerDesc);
-		});
-
-		//rendering rows and columns
-		result[0].values.forEach((row, rowId) => {
-			const tableRow = document.createElement("tr");
-			row.forEach((col, colId) => {
-				const tableCol = document.createElement("td");
-				if (colId != 0) {
-					tableCol.innerHTML = `
-					<div class="container">
-                		<input class="${result[0].columns[colId]}" type="text" name= "${sheetName}" oninput = "handleInputChange(event, ${row[0]}, '${result[0].columns[colId]}')" value = "${col}" />
-
-                		<ul type = "none" id="${sheetName}-${result[0].columns[colId]}-dropdown" class="dropdown">
-                  			<!-- List items will be dynamically inserted here -->
-                		</ul>
-              		</div>`;
-					tableCol.classList.add(`${result[0].columns[colId]}`);
-				} else {
-					tableCol.innerHTML = `${col}`;
-				}
-				tableRow.appendChild(tableCol);
-			});
-			dataInput.appendChild(tableRow);
-		});
-		const divclass = document.querySelectorAll(".resize");
-		divclass.forEach((resizer) => {
-			resizer.addEventListener("mousedown", (e) => {
-				const th = e.target.parentElement;
-				const col_class = th.classList[0];
-				const startWidth = th.offsetWidth;
-				const startX = e.pageX;
-
-				const onMouseMove = (e) => {
-					const newWidth = startWidth + (e.pageX - startX);
-					if (newWidth >= 50) {
-						document.querySelectorAll(`.${col_class}`).forEach((resizer) => {
-							if (resizer.nodeName == "INPUT") {
-								resizer.style.width = `${newWidth - 3}px`;
-							} else {
-								resizer.style.width = `${newWidth}px`;
-							}
-						});
-					}
-				};
-
-				const onMouseUp = () => {
-					console.log("mouseup");
-					document.removeEventListener("mousemove", onMouseMove);
-					document.removeEventListener("mouseup", onMouseUp);
-				};
-
-				document.addEventListener("mousemove", onMouseMove);
-				document.addEventListener("mouseup", onMouseUp);
-			});
-		});
-	} else {
-		result = db.exec(`PRAGMA table_info("${sheetName}");`);
-		sheet_col_len = result[0].values.length;
-		console.log(result);
-
-		result[0].values.forEach((colname, index) => {
-			const headerDesc = document.createElement("td");
-			headerDesc.innerHTML = `${colname[1].toUpperCase()}`;
-			tableHeader.appendChild(headerDesc);
-		});
-	}
-	const restInput = document.getElementById("rest-all-input");
-	restInput.innerHTML = `
-		<div style="margin: 10px 0px; display:flex; flex-direction:row;	">
-			<div>
-				<input type = "number" id = "${sheetName}-row-input" placeholder= "Enter Row Count."/>
-				<button onclick = "insertEmptyRows('${sheetName}', ${sheet_col_len})" style = "margin-left: 10px">Insert Empty Rows</button>
-			</div>
-          	<button name="${sheetName}" id ="${sheetName}-add" onclick = "add('${sheetName}')" style = "margin-left: 10px">Add ${sheetName}</button>
-          	<button name="${sheetName}" onclick="saveJson(event)" style="margin-left: 10px">
-              Save JSON
-          	</button>
-          	<input name="${sheetName}" type="file" id ="${sheetName}-loadjson" onchange = "loadJson(event)" style="margin-left: 10px" />
-          	<button name="${sheetName}" onclick="generateDBdump(event)" style="margin-left: 10px">
-              Generate DB dump
-          	</button>
-        </div>`;
-	closeSidePanel();
-	document.addEventListener("keydown", (e) => {
-		const focused_element = document.activeElement;
-		if (focused_element.tagName == "INPUT") {
-			const cellIndex = focused_element.parentElement.parentElement.cellIndex;
-			const rowIndex =
-				focused_element.parentElement.parentElement.parentElement.rowIndex;
-			const table = document.getElementById("user-select");
-			const rows = table.firstElementChild.rows;
-			switch (e.key) {
-				case "ArrowUp":
-					if (rowIndex > 1)
-						rows[rowIndex - 1].cells[
-							cellIndex
-						].firstElementChild.firstElementChild.focus();
-					break;
-				case "ArrowDown":
-					if (rowIndex < rows.length - 1)
-						rows[rowIndex + 1].cells[
-							cellIndex
-						].firstElementChild.firstElementChild.focus();
-					break;
-				case "ArrowLeft":
-					if (cellIndex > 1)
-						rows[rowIndex].cells[
-							cellIndex - 1
-						].firstElementChild.firstElementChild.focus();
-					break;
-				case "ArrowRight":
-					if (cellIndex < rows[rowIndex].cells.length - 1)
-						rows[rowIndex].cells[
-							cellIndex + 1
-						].firstElementChild.firstElementChild.focus();
-					break;
-			}
-		}
-	});
-}
-
-function insertEmptyRows(sheetName, colCount) {
-	const rows = document.getElementById(`${sheetName}-row-input`).value;
-	const noOfIterations = Math.ceil(rows / chunkSize);
-	let query = "";
-	for (let k = 0; k < noOfIterations; k++) {
-		const limit = Math.min(rows, (k + 1) * chunkSize - 1);
-		const start = k * chunkSize;
-		query = `INSERT INTO ${sheetName} values`;
-		for (let i = start; i < limit; i++) {
-			if (i != start) query += `, (${i}`;
-			else query += ` (${i}`;
-			for (let j = 1; j < colCount; j++) {
-				query += ` ,""`;
-			}
-			query += `)`;
-		}
-		query += `;`;
-		//insering empty rows
-		try {
-			db.run(query);
-		} catch (error) {
-			alert("Error Inserting Data at iter: ", k);
-			console.log(error);
-			break;
-		}
-	}
-	renderSheet(sheetName);
-}
-
-//function to save the context on input
-function handleInputChange(event, rowno, colname) {
-	const { name, value } = event.target; //name represent sheetnames
-	const result = db.exec(`PRAGMA foreign_key_list(${name});`);
-	if (result[0]) {
-		let tab = "";
-		var relColumns = [];
-		result[0].values.forEach((col, colId) => {
-			if (col[3] == colname) {
-				//col[3] represents colname of refereing table
-				tab = col[2];
-			}
-		});
-		if (tab != "") {
-			result[0].values.forEach((col, colId) => {
-				if (col[2] == tab && col[3] != colname) {
-					relColumns.push(col[3]);
-				}
-			});
-			var len = relColumns.length;
-			var query1 = "";
-			var result1;
-			if (len > 0) {
-				query1 = `select `;
-				relColumns.forEach((data, id) => {
-					if (id != len - 1) {
-						query1 += `${data},`;
-					} else {
-						query1 += `${data} `;
-					}
-				});
-				query1 += `from ${name} where id = ${rowno}`;
-				result1 = db.exec(query1);
-			}
-			query1 = `SELECT distinct(${colname}) from ${tab} where`;
-			if (result1) {
-				len = result1[0].columns.length;
-				result1[0].values[0].forEach((data, id) => {
-					if (data != "") {
-						query1 += ` ${result1[0].columns[id]} = "${data}" AND`;
-					}
-				});
-			}
-			query1 += ` ${colname} LIKE "%${value}%";`;
-			result1 = db.exec(query1);
-			const dropdown = document.getElementById(`${name}-${colname}-dropdown`);
-			dropdown.style.display = "block";
-			dropdown.innerHTML = "";
-			if (result1[0]) {
-				result1[0].values.forEach((data, id) => {
-					const li = document.createElement("li");
-					li.innerHTML = data;
-					li.id = data;
-					li.addEventListener("click", (e) => {
-						dropdown.style.display = "none";
-						(async () => {
-							await db.run(
-								`UPDATE ${name} SET ${colname} = "${e.target.id}" where id = ${rowno};`
-							);
-							renderSheet(name);
-						})();
-					});
-					dropdown.appendChild(li);
-				});
-			}
-		} else {
-			db.run(`UPDATE ${name} SET ${colname} = "${value}" WHERE c0 = ${rowno};`);
-		}
-	} else {
-		db.run(`UPDATE ${name} SET ${colname} = "${value}" WHERE c0 = ${rowno};`);
-	}
-}
-
-function add(tablename, pagesRendered) {
-	const res = db.exec(`PRAGMA table_info (${tablename});`);
-	const result = db.exec(`SELECT MAX(id) from ${tablename};`);
-	// console.log(result);
-	var length = 1;
-	if (result[0].values[0][0]) {
-		length = result[0].values[0][0] - "0";
-		length++;
-		console.log(length);
-	}
-	var query = `INSERT INTO ${tablename} values(${length}`;
-	res[0].values.forEach((data, index) => {
-		if (index > 0) {
-			query = query + `, ""`;
-		}
-	});
-	query = query + `);`;
-	db.run(query);
-}
-
 //sidepanel handlers
 function openSidePanel() {
 	document.getElementById("sidepanel-items").style.width = "250px";
@@ -589,7 +670,6 @@ function renderSidePanel() {
     </div>
     <div id = "user-select"></div>
   `;
-
 	openSidePanel();
 }
 
